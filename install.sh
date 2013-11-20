@@ -1,67 +1,47 @@
-#!/bin/bash
+# Avoir couchdb > 1.1
 
 echo "Could you enter a username and a password for your local database ?"
 read username
 read password 
 database="cozy-files"
-
-
-# Create database
-echo -e "\033[33m Database creation ... \033[0m"
 COUCH="http://localhost:5984"
+
+curl -X DELETE $COUCH/$database
+rm -rf /etc/cozy-files
+
+echo "\033[33m Database configuration ... \033[0m"
 curl -HContent-Type:application/json -vXPUT $COUCH/_users/org.couchdb.user:$username --data-binary "{\"_id\": \"org.couchdb.user:$username\",\"name\": \"$username\",\"roles\": [],\"type\": \"user\",\"password\": \"$password\"}"
-curl -vX PUT $COUCH/$database
-curl -vX PUT $COUCH/$database/_security  \
-   -Hcontent-type:application/json \
-    --data-binary "{\"admins\":{\"names\":[\"$username\"],\"roles\":[]},\"members\":{\"names\":[\"$username\"],\"roles\":[]}}"
-echo -e "\033[32m Database created \033[0m"
+echo "\033[32m Database configured \033[0m"
 
 
-# Configure couchDB
-echo -e "\033[33m Database configuration ... \033[0m"
-#curl -vX PUT $COUCH/_config/admins/$username -d "\"$password\""
-sed -i '/\[external\]/ a\
-replication = python /usr/local/src/couchdb/replication.py' /usr/local/etc/couchdb/local.ini
-sed -i '/\[httpd_db_handlers\]/ a\
-_replication = {couch_httpd_external, handle_external_req, <<"replication">>}' /usr/local/etc/couchdb/local.ini
-cd /etc/
-mkdir cozy-files
-cd cozy-files
-wget https://raw.github.com/poupotte/cozy-files-couchapp/master/helpers/replication.py
-mv replication.py /usr/local/src/couchdb
-service couchdb restart
-echo -e "\033[32m Database is well configurated \033[0m"
-
-# Start couchFUSE as deamon
-useradd couchfuse
-usermod --shell /bin/bash couchfuse
-usermod -g fuse couchfuse
-echo -e "\033[33m Fuse configuration ... \033[0m"
-touch /etc/cozy-files/couchdb.login
-chown couchfuse /etc/cozy-files/couchdb.login
-chmod 700 /etc/cozy-files/couchdb.login
-echo -e "$username\n$password" >> /etc/cozy-files/couchdb.login
+echo "\033[33m Recover source ... \033[0m"
+mkdir /etc/cozy-files
+cd /etc/cozy-files
 git clone https://github.com/poupotte/couchdb-fuse.git
-cp couchdb-fuse/replication /etc/init.d
-chmod 733 /etc/init.d/replication
-cp couchdb-fuse/fuse /etc/init.d
-chmod 733 /etc/init.d/fuse
-/etc/init.d/fuse start
-/etc/init.d/replication start
-sudo update-rc.d fuse defaults
-sudo update-rc.d replication defaults
-echo -e "\033[32m Fuse is well configurated \033[0m"
+echo "\033[32m Source recovered \033[0m"
 
-# Publish couchApp
-echo -e "\033[33m couchApp configuration ... \033[0m"
-git clone https://github.com/poupotte/cozy-files-couchapp.git
-cd cozy-files-couchapp
-npm install -g kanso
-kanso install
-cd /etc/cozy-files/cozy-files-couchapp
-echo "http://$username:$password@localhost:5984/$database"
-kanso push "http://$username:$password@localhost:5984/$database"
-echo -e "\033[32m couchApp is well configurated \033[0m"
-echo -e "\033[32m cozy-files is well configurated \033[0m"
-echo -e "\033[32m You can go to url :http://localhost:5984/cozy-files/_design/cozy-files/index.html
- to configured your device \033[0m"
+# Stocker password
+echo "\033[33m Password configuration ... \033[0m"
+touch /etc/cozy-files/couchdb.login
+user="$(users)"
+chown $user:$user /etc/cozy-files/couchdb.login
+chmod 700 /etc/cozy-files/couchdb.login
+echo "$username\n$password"
+echo "$username" >> /etc/cozy-files/couchdb.login
+echo "$password" >> /etc/cozy-files/couchdb.login
+echo "\033[32m Password configured \033[0m"
+
+cd couchdb-fuse/
+# Install dependencies
+echo "\033[33m Dependencies installation ... \033[0m"
+apt-get install python-fuse
+apt-get install python-couchdb
+apt-get install python-pip
+pip install requests
+apt-get install python-appindicator
+apt-get install python-glade2
+apt-get install python-gobject
+apt-get install gir1.2-gtk-3.0
+echo "\033[32m Dependencies installed ... \033[0m"
+su $user -c 'python cozy_files.py'
+echo "\033[32m Cozy-files is well installed ... \033[0m"
