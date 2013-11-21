@@ -1,4 +1,4 @@
-# Avoir couchdb > 1.1
+# Requirements : couchdb > 1.1
 
 echo "Could you enter a username and a password for your local database ?"
 read username
@@ -26,7 +26,6 @@ touch /etc/cozy-files/couchdb.login
 user="$(users)"
 chown $user:$user /etc/cozy-files/couchdb.login
 chmod 700 /etc/cozy-files/couchdb.login
-echo "$username\n$password"
 echo "$username" >> /etc/cozy-files/couchdb.login
 echo "$password" >> /etc/cozy-files/couchdb.login
 echo "\033[32m Password configured \033[0m"
@@ -43,5 +42,14 @@ apt-get install python-glade2
 apt-get install python-gobject
 apt-get install gir1.2-gtk-3.0
 echo "\033[32m Dependencies installed ... \033[0m"
-su $user -c 'python cozy_files.py'
+
+echo "\033[33m Start cozy_files ... \033[0m"
+str='/DEAMON_OPT=""/ a\DAEMONUSER="'
+str="$str$user"
+str="$str\""
+sed -i "$str" /etc/cozy-files/couchdb-fuse/cozy_files
+cp /etc/cozy-files/couchdb-fuse/cozy_files /etc/init.d
+chmod 733 /etc/init.d/cozy_files
+/etc/init.d/cozy_files start
+update-rc.d cozy_files defaults
 echo "\033[32m Cozy-files is well installed ... \033[0m"
